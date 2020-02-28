@@ -62,6 +62,8 @@ func CIE2000SquaredColorDifference(
         let (L1, a1, b1) = lab1.unpack()
         let (L2, a2, b2) = lab2.unpack()
         
+//        L1 = L2
+        
         let ΔLp = L2 - L1
         let Lbp = (L1 + L2) / 2
         

@@ -15,7 +15,7 @@ import GLKit
 
 // MARK: Bitmaps
 
-private struct RGBAPixel {
+public struct RGBAPixel {
     let r: UInt8
     let g: UInt8
     let b: UInt8
@@ -23,12 +23,12 @@ private struct RGBAPixel {
 }
 
 extension RGBAPixel: Hashable {
-    fileprivate var hashValue: Int {
+    public var hashValue: Int {
         return (((Int(r) << 8) | Int(g)) << 8) | Int(b)
     }
 }
 
-private func ==(lhs: RGBAPixel, rhs: RGBAPixel) -> Bool {
+public func ==(lhs: RGBAPixel, rhs: RGBAPixel) -> Bool {
     return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b
 }
 
@@ -111,7 +111,7 @@ Computes the dominant colors in an image
                            `maxSampledPixels` in images that are primarily comprised
                            of flat colors. If this information about the image is
                            not known beforehand, it is best to not memoize.
-
+ 
 - returns: A list of dominant colors in the image sorted from most dominant to
           least dominant.
 */
@@ -146,15 +146,34 @@ public func dominantColorsInImage(
             labValues.append(RGBToLAB(pixel))
         }
     }
+    
+    let svtCentroids = CGColor.palette.map { IN_RGBToLAB($0.toRGBVector()) }
+    // svtColors().map { IN_RGBToLAB($0.toRGBVector()) }
+    
     // Cluster the colors using the k-means algorithm
     let k = selectKForElements(labValues)
     var clusters = kmeans(labValues, k: k, seed: seed, distance: distanceForAccuracy(accuracy))
+    //var clusters = ourmeans(labValues, centroids: svtCentroids, distance: distanceForAccuracy(accuracy))
     
     // Sort the clusters by size in descending order so that the
     // most dominant colors come first.
     clusters.sort { $0.size > $1.size }
     
-    return clusters.map { RGBVectorToCGColor(IN_LABToRGB($0.centroid)) }
+    let compare =  CIE2000SquaredColorDifference()
+    let best = clusters.first!
+    let sorted = svtCentroids.sorted { compare(best.centroid, $0) < compare(best.centroid, $1) }
+    return sorted.map { RGBVectorToCGColor(IN_LABToRGB($0)) }
+    //return clusters.map { RGBVectorToCGColor(IN_LABToRGB($0.centroid)) }
+}
+
+private func svtColors() -> [RGBAPixel] {
+    
+    return [RGBAPixel(r: 255, g: 0, b: 0, a: 255),
+    RGBAPixel(r: 0, g: 255, b: 0, a: 255),
+    RGBAPixel(r: 0, g: 0, b: 255, a: 255),
+    RGBAPixel(r: 255, g: 255, b: 255, a: 255),
+    RGBAPixel(r: 0, g: 0, b: 0, a: 255),
+    RGBAPixel(r: 120, g: 0, b: 0, a: 255)]
 }
 
 private func distanceForAccuracy(_ accuracy: GroupingAccuracy) -> (GLKVector3, GLKVector3) -> Float {

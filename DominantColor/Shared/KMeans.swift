@@ -28,6 +28,24 @@ struct Cluster<T : ClusteredType> {
 // k-means clustering algorithm from
 // http://users.eecs.northwestern.edu/~wkliao/Kmeans/
 
+func ourmeans<T : ClusteredType>(
+    _ points: [T],
+    centroids: [T],
+    distance: ((T, T) -> Float),
+    threshold: Float = 0.0001
+) -> [Cluster<T>] {
+    
+    var clusterSizes: [Int] = Array(repeating: 0, count: centroids.count)
+    
+    for point in points {
+        if let clusterIndex = findNearestCluster(point, centroids: centroids, k: centroids.count, distance: distance, threshold: 100) {
+            clusterSizes[clusterIndex] += 1
+        }
+    }
+    
+    return zip(centroids, clusterSizes).map { Cluster(centroid: $0, size: $1) }
+}
+
 func kmeans<T : ClusteredType>(
         _ points: [T],
         k: Int,
@@ -84,6 +102,24 @@ private func findNearestCluster<T : ClusteredType>(_ point: T, centroids: [T], k
             minDistance = distance
             clusterIndex = i
         }
+    }
+    print("Distance is \(minDistance)")
+    return clusterIndex
+}
+
+private func findNearestCluster<T : ClusteredType>(_ point: T, centroids: [T], k: Int, distance: (T, T) -> Float, threshold: Float) -> Int? {
+    var minDistance = Float.infinity
+    var clusterIndex = 0
+    for i in 0..<k {
+        let distance = distance(point, centroids[i])
+        if distance < minDistance {
+            minDistance = distance
+            clusterIndex = i
+        }
+    }
+    print("Distance is \(minDistance)")
+    if minDistance > threshold {
+        return nil
     }
     return clusterIndex
 }
